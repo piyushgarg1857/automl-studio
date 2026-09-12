@@ -33,10 +33,10 @@ def get_dataset_profile(df: pd.DataFrame) -> pd.DataFrame:
         profile.append({
             "Column": col,
             "Type": str(df[col].dtype),
-            "Missing": df[col].isnull().sum(),
+            "Missing": int(df[col].isnull().sum()),
             "Missing %": round(df[col].isnull().mean() * 100, 2),
-            "Unique Values": df[col].nunique(),
-            "Skewness": round(df[col].skew(), 3) if pd.api.types.is_numeric_dtype(df[col]) else "N/A",
+            "Unique Values": int(df[col].nunique()),
+            "Skewness": round(float(df[col].skew()), 3) if pd.api.types.is_numeric_dtype(df[col]) else float("nan"),
         })
     return pd.DataFrame(profile)
 

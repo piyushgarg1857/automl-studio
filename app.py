@@ -242,7 +242,7 @@ with col_right:
     exp_tab1, exp_tab2, exp_tab3 = st.tabs(["📋 Data Preview", "📊 EDA", "🗂️ Column Profile"])
 
     with exp_tab1:
-        st.dataframe(df.head(20), use_container_width=True, height=260)
+        st.dataframe(df.head(20), width="stretch", height=260)
 
     with exp_tab2:
         num_df = df.select_dtypes(include=np.number)
@@ -257,7 +257,7 @@ with col_right:
             ax.tick_params(colors="#a0aec0")
             for spine in ax.spines.values(): spine.set_edgecolor("#2d3748")
             plt.tight_layout()
-            st.pyplot(fig, use_container_width=True)
+            st.pyplot(fig)
 
         elif eda_choice == "Correlation Heatmap":
             if len(num_df.columns) > 1:
@@ -267,7 +267,7 @@ with col_right:
                             ax=ax, linewidths=0.5, annot_kws={"size": 7})
                 ax.tick_params(colors="#a0aec0", labelsize=7)
                 plt.tight_layout()
-                st.pyplot(fig, use_container_width=True)
+                st.pyplot(fig)
             else:
                 st.info("Not enough numeric columns.")
 
@@ -283,11 +283,11 @@ with col_right:
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.3,
                         str(val), ha="center", color="#e2e8f0", fontsize=8)
             plt.tight_layout()
-            st.pyplot(fig, use_container_width=True)
+            st.pyplot(fig)
 
     with exp_tab3:
         profile = get_dataset_profile(df)
-        st.dataframe(profile, use_container_width=True, height=260)
+        st.dataframe(profile, width="stretch", height=260)
 
 # ── Step 3: Train ─────────────────────────────────────────────────────────────
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
@@ -362,7 +362,7 @@ with tab1:
     def highlight_best(s):
         return ["background-color: #1a3a2a; color: #68d391; font-weight: bold"
                 if i == 0 else "" for i in range(len(s))]
-    st.dataframe(results.style.apply(highlight_best, axis=0), use_container_width=True)
+    st.dataframe(results.style.apply(highlight_best, axis=0), width="stretch")
 
     csv_bytes = results.to_csv(index=False).encode("utf-8")
     st.download_button("📥 Export Leaderboard as CSV", data=csv_bytes,
@@ -384,7 +384,7 @@ with tab2:
     ax.invert_yaxis()
     for spine in ax.spines.values(): spine.set_edgecolor("#2d3748")
     plt.tight_layout()
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig)
 
 # ── Tab 3: Feature Importance ─────────────────────────────────────────────────
 with tab3:
@@ -410,8 +410,8 @@ with tab3:
         ax.invert_yaxis()
         for spine in ax.spines.values(): spine.set_edgecolor("#2d3748")
         plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        st.dataframe(fi_df, use_container_width=True)
+        st.pyplot(fig)
+        st.dataframe(fi_df, width="stretch")
     else:
         st.markdown('<div class="info-box">ℹ️ Feature importance is not available for this model type (e.g. SVM, KNN, Naive Bayes).</div>', unsafe_allow_html=True)
 
@@ -434,7 +434,7 @@ with tab4:
         ax.set_title(f"Confusion Matrix — {cm_model_name}", color="#e2e8f0", fontsize=12, pad=12)
         ax.tick_params(colors="#a0aec0")
         plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig)
 
 # ── Tab 5: Hyperparameter Tuning ──────────────────────────────────────────────
 with tab5:
