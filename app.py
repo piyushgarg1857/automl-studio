@@ -9,6 +9,7 @@ from sklearn.metrics import confusion_matrix
 
 from evaluation_core import detect_problem_type, evaluate_models
 from ml_engine import CLASSIFIERS, REGRESSORS, get_dataset_profile
+from model_bundle import ModelBundle
 
 st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
 st.title("⚡ AutoML Studio")
@@ -244,7 +245,12 @@ with matrix_tab:
 with export_tab:
     st.write(f"Selected export model: **{best_name}**")
     st.warning("Pickle files should only be loaded from sources you trust.")
-    model_bytes = pickle.dumps(artifacts[best_name]["pipeline"])
+    model_bytes = pickle.dumps(
+        ModelBundle(
+            artifacts[best_name]["pipeline"],
+            artifacts[best_name].get("label_encoder"),
+        )
+    )
     st.download_button(
         "Download best fitted pipeline (.pkl)",
         data=model_bytes,
