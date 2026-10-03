@@ -21,7 +21,6 @@ This file records meaningful development work, validation, known gaps, and hando
 - Record the exact command, environment, result, and any skipped checks below after running them.
 
 ### Current known gaps
-- Hyperparameter tuning UI is not integrated into the current Streamlit app.
 - Existing legacy evaluation/preprocessing functions remain in `ml_engine.py`; the app currently uses `evaluation_core.py`.
 - The app's complete browser/UI flow and hosted deployment are not covered by the unit tests.
 
@@ -40,7 +39,6 @@ This file records meaningful development work, validation, known gaps, and hando
 - Confirmed a GitHub Actions unittest workflow is present on the branch.
 
 ### Validation
-- Pending: run the full repository suite and inspect the GitHub Actions result for this branch/PR.
 - Manual Streamlit interaction and hosted deployment checks remain pending.
 
 
@@ -53,5 +51,16 @@ This file records meaningful development work, validation, known gaps, and hando
 - Updated the development checklist to distinguish completed coverage from remaining model-failure tests.
 
 ### Validation
-- GitHub Actions is expected to run the full unittest suite for this branch/PR.
-- Record the final run result after the workflow completes; no test result is assumed from code inspection.
+- The PR branch's GitHub Actions run passed; the merged-branch workflow was checked separately and completed successfully.
+
+
+## 2026-10-03 — Multiclass and model-failure coverage
+
+### Changes
+- Added a three-class classification test that checks predictions and holdout labels retain the original class names.
+- Added a deliberately failing estimator test to verify one model's failure is captured in the evaluation artifacts and leaderboard rather than crashing the whole evaluation loop.
+- Updated the checklist to track verification of the new failure-handling test.
+
+### Validation
+- Pending: run the full unittest suite in GitHub Actions and record its result.
+- Manual Streamlit interaction and hosted deployment checks remain pending.
