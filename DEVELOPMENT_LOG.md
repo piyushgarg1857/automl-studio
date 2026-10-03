@@ -62,5 +62,6 @@ This file records meaningful development work, validation, known gaps, and hando
 - Updated the checklist to track verification of the new failure-handling test.
 
 ### Validation
-- Pending: run the full unittest suite in GitHub Actions and record its result.
-- Manual Streamlit interaction and hosted deployment checks remain pending.
+- GitHub Actions full unittest workflow passed on the PR branch; PR #5 was subsequently merged into `datamining`.
+- User reported successful local Streamlit testing with the Iris classification dataset and Auto MPG regression dataset, with no errors.
+- Hosted deployment verification remains pending.
