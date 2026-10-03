@@ -25,6 +25,7 @@ from sklearn.model_selection import (
     StratifiedKFold,
     cross_val_score,
     train_test_split,
+    RandomizedSearchCV,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
@@ -208,3 +209,78 @@ def evaluate_models(
     if score_col in leaderboard:
         leaderboard = leaderboard.sort_values(score_col, ascending=False, na_position="last")
     return leaderboard.reset_index(drop=True), artifacts
+
+
+
+def tune_estimator(
+    X: pd.DataFrame,
+    y: pd.Series,
+    estimator,
+    param_distributions: Mapping[str, object],
+    *,
+    problem_type: str = "auto",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    cv_folds: int = 3,
+    n_iter: int = 10,
+    scale_numeric: bool = True,
+):
+    """Tune an estimator using only the training split and fold-local preprocessing.
+
+    The holdout split is deliberately not passed to RandomizedSearchCV. Returns
+    the fitted search object, target encoder (classification only), and task.
+    """
+    if len(X) != len(y):
+        raise ValueError("X and y must have the same number of rows")
+    if X.empty or len(X) < 4:
+        raise ValueError("At least four rows and one feature are required")
+    if y.isna().any():
+        raise ValueError("Target contains missing values; clean or filter it first")
+
+    task = detect_problem_type(y, task=problem_type)
+    label_encoder = None
+    if task == "classification":
+        label_encoder = LabelEncoder()
+        y = pd.Series(label_encoder.fit_transform(y), index=y.index, name=y.name)
+        stratify = y
+    else:
+        stratify = None
+
+    X_train, _, y_train, _ = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=stratify
+    )
+    if task == "classification":
+        min_class_count = int(y_train.value_counts().min())
+        folds = min(cv_folds, min_class_count)
+        if folds < 2:
+            raise ValueError("Each class needs at least two training examples for tuning CV")
+        cv = StratifiedKFold(n_splits=folds, shuffle=True, random_state=random_state)
+        scoring = "f1_weighted"
+    else:
+        folds = min(cv_folds, len(X_train))
+        if folds < 2:
+            raise ValueError("Not enough training rows for tuning CV")
+        cv = KFold(n_splits=folds, shuffle=True, random_state=random_state)
+        scoring = "r2"
+
+    pipeline = Pipeline([
+        ("preprocess", build_preprocessor(X_train, scale_numeric=scale_numeric)),
+        ("model", estimator),
+    ])
+    prefixed_params = {
+        (key if key.startswith("model__") else f"model__{key}"): value
+        for key, value in param_distributions.items()
+    }
+    search = RandomizedSearchCV(
+        pipeline,
+        param_distributions=prefixed_params,
+        n_iter=max(1, int(n_iter)),
+        scoring=scoring,
+        cv=cv,
+        random_state=random_state,
+        n_jobs=-1,
+        error_score="raise",
+        refit=True,
+    )
+    search.fit(X_train, y_train)
+    return search, label_encoder, task

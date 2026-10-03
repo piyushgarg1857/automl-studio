@@ -26,14 +26,14 @@ Use this checklist to track project completion. Update it as work is completed; 
 - [ ] Document safe loading and prediction usage for exported artifacts.
 
 ## Model tuning
-- [ ] Integrate the existing tuning function and grids into the Streamlit UI.
-- [ ] Show selected model, search space, scoring metric, and best parameters.
-- [ ] Keep tuning preprocessing inside the pipeline to avoid leakage.
+- [x] Integrate randomized hyperparameter tuning controls into the Streamlit UI.
+- [x] Show selected model, search space, scoring metric, and best parameters.
+- [x] Keep tuning preprocessing inside the pipeline to avoid leakage.
 - [ ] Add tests for tuning behavior and runtime limits.
 
 ## Quality and delivery
 - [ ] Run `python -m unittest discover -s tests -v` before each merge.
-- [ ] Add CI workflow to run tests automatically on pushes and pull requests.
+- [x] Add CI workflow to run tests automatically on pushes and pull requests.
 - [ ] Test the Streamlit app manually with classification and regression datasets.
 - [ ] Verify deployment configuration and hosted app.
 - [ ] Update `DEVELOPMENT_LOG.md` and `AI_CONTEXT.md` after substantial changes.
