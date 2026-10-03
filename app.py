@@ -12,6 +12,7 @@ from sklearn.inspection import permutation_importance
 from evaluation_core import detect_problem_type, evaluate_models, tune_estimator
 from ml_engine import CLASSIFIERS, REGRESSORS, TUNING_GRIDS, get_dataset_profile
 from model_bundle import ModelBundle
+from experiment_store import save_experiment, list_experiments, load_experiment, delete_experiment
 
 st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
 st.title("⚡ AutoML Studio")
@@ -175,8 +176,8 @@ for col, metric in zip(metric_cols, shown_metrics):
     value = best_row[metric]
     col.metric(metric, f"{value:.4f}" if pd.notna(value) else "—")
 
-leader_tab, insights_tab, chart_tab, explain_tab, matrix_tab, predict_tab, export_tab, tuning_tab = st.tabs(
-    ["Leaderboard", "Model insights", "Comparison dashboard", "Feature importance", "Confusion matrix", "Prediction playground", "Export", "Tuning"]
+leader_tab, insights_tab, chart_tab, explain_tab, matrix_tab, predict_tab, history_tab, export_tab, tuning_tab = st.tabs(
+    ["Leaderboard", "Model insights", "Comparison dashboard", "Feature importance", "Confusion matrix", "Prediction playground", "Experiment history", "Export", "Tuning"]
 )
 
 with leader_tab:
@@ -570,6 +571,97 @@ with predict_tab:
                     )
             except Exception as exc:
                 st.error(f"Could not process batch file: {type(exc).__name__}: {exc}")
+
+
+with history_tab:
+    st.subheader("Experiment history")
+    st.caption(
+        "Save this run locally in SQLite, revisit its metrics, and download fitted models. "
+        "The database stays on the machine running this Streamlit app."
+    )
+    with st.form("save_experiment_form"):
+        experiment_name = st.text_input(
+            "Experiment name",
+            value=f"{uploaded.name.rsplit('.', 1)[0]} · {task.title()}",
+            max_chars=100,
+        )
+        save_clicked = st.form_submit_button("Save current experiment", type="primary")
+    if save_clicked:
+        if not experiment_name.strip():
+            st.error("Enter a name for this experiment.")
+        else:
+            try:
+                experiment_id = save_experiment(
+                    experiment_name.strip(), task, target, results, artifacts, score_col
+                )
+                st.success(f"Saved experiment #{experiment_id}.")
+            except Exception as exc:
+                st.error(f"Could not save experiment: {type(exc).__name__}: {exc}")
+
+    try:
+        history = list_experiments()
+    except Exception as exc:
+        history = []
+        st.error(f"Could not read experiment history: {type(exc).__name__}: {exc}")
+
+    if history:
+        history_df = pd.DataFrame(history).rename(
+            columns={
+                "id": "ID", "name": "Experiment", "created_at": "Saved at (UTC)",
+                "task": "Task", "target": "Target", "model_count": "Models",
+                "score_metric": "Tracked metric", "score_value": "Tracked score",
+            }
+        )
+        st.dataframe(history_df, use_container_width=True, hide_index=True)
+        id_options = [row["id"] for row in history]
+        selected_history_id = st.selectbox(
+            "Choose a saved experiment",
+            id_options,
+            format_func=lambda value: next(
+                f"#{row['id']} · {row['name']}" for row in history if row["id"] == value
+            ),
+            key="history_selection",
+        )
+        action_cols = st.columns(3)
+        if action_cols[0].button("Load experiment", use_container_width=True):
+            try:
+                saved_payload = load_experiment(selected_history_id)
+                st.session_state["automl_results"] = saved_payload["leaderboard"]
+                st.session_state["automl_artifacts"] = saved_payload["artifacts"]
+                selected_meta = next(row for row in history if row["id"] == selected_history_id)
+                st.session_state["automl_task"] = selected_meta["task"]
+                st.success("Saved results loaded into the current session. Re-upload the matching dataset if needed.")
+            except Exception as exc:
+                st.error(f"Could not load experiment: {type(exc).__name__}: {exc}")
+        if action_cols[1].button("Delete experiment", use_container_width=True):
+            try:
+                if delete_experiment(selected_history_id):
+                    st.success(f"Experiment #{selected_history_id} deleted.")
+                    st.rerun()
+                else:
+                    st.warning("That experiment was not found.")
+            except Exception as exc:
+                st.error(f"Could not delete experiment: {type(exc).__name__}: {exc}")
+        if action_cols[2].button("Compare saved runs", use_container_width=True):
+            st.session_state["show_saved_comparison"] = True
+
+        if st.session_state.get("show_saved_comparison"):
+            st.markdown("#### Saved run comparison")
+            compare_rows = [
+                {
+                    "Experiment": row["name"],
+                    "Task": row["task"],
+                    "Target": row["target"],
+                    "Metric": row["score_metric"],
+                    "Score": row["score_value"],
+                    "Models": row["model_count"],
+                }
+                for row in history
+            ]
+            st.dataframe(pd.DataFrame(compare_rows), use_container_width=True, hide_index=True)
+            st.caption("Runs may use different datasets, targets, or metrics. Compare scores only when those conditions are compatible.")
+    else:
+        st.info("No saved experiments yet. Save the current run to begin your history.")
 
 with export_tab:
     st.write(f"Selected export model: **{best_name}**")
