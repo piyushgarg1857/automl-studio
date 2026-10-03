@@ -1,204 +1,60 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
+import pickle
+
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from ml_engine import (detect_problem_type, preprocess, evaluate_models,
-                       get_dataset_profile, get_feature_importance,
-                       get_confusion_matrix, tune_best_model, export_model)
+import streamlit as st
+from sklearn.metrics import confusion_matrix
 
-# ── Page Config ─────────────────────────────────────────────────────────────
+from evaluation_core import detect_problem_type, evaluate_models
+from ml_engine import CLASSIFIERS, REGRESSORS, get_dataset_profile
+
 st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
+st.title("⚡ AutoML Studio")
+st.caption("Tabular AutoML · Leakage-safe evaluation · Model comparison")
 
-# ── Custom CSS ───────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-    /* Global font */
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
-    /* Hide default streamlit header/footer */
-    #MainMenu, footer, header { visibility: hidden; }
-
-    /* Top navbar */
-    .navbar {
-        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-        padding: 1.2rem 2rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .navbar h1 { color: #ffffff; font-size: 1.8rem; margin: 0; font-weight: 700; }
-    .navbar p  { color: #a0b4c0; font-size: 0.9rem; margin: 0; }
-
-    /* Section cards */
-    .section-card {
-        background: #1e2530;
-        border: 1px solid #2d3748;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    .section-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #e2e8f0;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 0.8rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #3182ce;
-        display: inline-block;
-    }
-
-    /* Metric cards */
-    .metric-row { display: flex; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; }
-    .metric-card {
-        background: linear-gradient(135deg, #1a202c, #2d3748);
-        border: 1px solid #4a5568;
-        border-radius: 10px;
-        padding: 1rem 1.5rem;
-        flex: 1;
-        min-width: 130px;
-        text-align: center;
-    }
-    .metric-card .val { font-size: 1.6rem; font-weight: 700; color: #63b3ed; }
-    .metric-card .lbl { font-size: 0.75rem; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
-
-    /* Best model banner */
-    .best-banner {
-        background: linear-gradient(135deg, #1a3a2a, #1e4d35);
-        border: 1px solid #38a169;
-        border-left: 5px solid #48bb78;
-        border-radius: 10px;
-        padding: 1.2rem 1.8rem;
-        margin: 1rem 0;
-    }
-    .best-banner h2 { color: #68d391; margin: 0 0 0.3rem 0; font-size: 1.3rem; }
-    .best-banner p  { color: #9ae6b4; margin: 0; font-size: 0.85rem; }
-
-    /* Step badge */
-    .step-badge {
-        background: #3182ce;
-        color: white;
-        border-radius: 50%;
-        width: 28px; height: 28px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.85rem;
-        margin-right: 8px;
-    }
-    .step-header {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #e2e8f0;
-        margin: 1.5rem 0 0.8rem 0;
-        display: flex;
-        align-items: center;
-    }
-
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        background: #1a202c;
-        border-radius: 10px;
-        padding: 4px;
-        gap: 4px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        color: #a0aec0;
-        font-weight: 500;
-        padding: 8px 20px;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #3182ce !important;
-        color: white !important;
-    }
-
-    /* Divider */
-    .divider { border-top: 1px solid #2d3748; margin: 1.5rem 0; }
-
-    /* Info box */
-    .info-box {
-        background: #1a2744;
-        border: 1px solid #3182ce;
-        border-radius: 8px;
-        padding: 0.8rem 1.2rem;
-        color: #90cdf4;
-        font-size: 0.88rem;
-        margin: 0.5rem 0;
-    }
-    .warn-box {
-        background: #2d2000;
-        border: 1px solid #d69e2e;
-        border-radius: 8px;
-        padding: 0.8rem 1.2rem;
-        color: #f6e05e;
-        font-size: 0.88rem;
-        margin: 0.5rem 0;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ── Navbar ───────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="navbar">
-    <div>
-        <h1>⚡ AutoML Studio</h1>
-        <p>Automated Machine Learning · Model Evaluation · Intelligent Recommendations</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Sidebar ──────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙️ Preprocessing Configuration")
-    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
-    impute_strategy = st.selectbox(
-        "Missing Value Strategy",
-        ["mean", "median", "most_frequent"],
-        help="Strategy to fill missing values in numeric columns"
-    )
-    scaler_type = st.selectbox(
-        "Feature Scaling",
-        ["standard", "minmax", "none"],
-        format_func=lambda x: {"standard": "Standard Scaler (Z-score)", "minmax": "Min-Max Scaler (0–1)", "none": "No Scaling"}[x],
-        help="Normalization method applied to features"
-    )
-
-    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    st.markdown("### 📌 About")
-    st.markdown("""
-    <div style="color:#a0aec0; font-size:0.82rem; line-height:1.6;">
-    AutoML Studio evaluates <b style="color:#63b3ed;">15+ ML algorithms</b> on your dataset using 5-fold cross-validation and recommends the best-performing model.<br><br>
-    Supports <b style="color:#63b3ed;">Classification</b> & <b style="color:#63b3ed;">Regression</b> tasks.
-    </div>
-    """, unsafe_allow_html=True)
-
-# ── Step 1: Upload ────────────────────────────────────────────────────────────
-st.markdown('<div class="step-header"><span class="step-badge">1</span> Upload Dataset</div>', unsafe_allow_html=True)
-uploaded_file = st.file_uploader("Supported formats: CSV, Excel (.xlsx), JSON", type=["csv", "xlsx", "json"], label_visibility="collapsed")
-
-if not uploaded_file:
-    st.markdown('<div class="info-box">📂 Upload a dataset file to begin. Supported formats: CSV, Excel, JSON.</div>', unsafe_allow_html=True)
+uploaded = st.file_uploader("Upload CSV, Excel, or JSON dataset", type=["csv", "xlsx", "json"])
+if uploaded is None:
+    st.info("Upload a dataset to explore it and evaluate machine-learning models.")
     st.stop()
 
-# ── Load Data ─────────────────────────────────────────────────────────────────
-ext = uploaded_file.name.split(".")[-1]
 try:
-    if ext == "csv":
-        df = pd.read_csv(uploaded_file)
-    elif ext == "xlsx":
-        df = pd.read_excel(uploaded_file)
+    suffix = uploaded.name.rsplit(".", 1)[-1].lower()
+    if suffix == "csv":
+        df = pd.read_csv(uploaded)
+    elif suffix == "xlsx":
+        df = pd.read_excel(uploaded)
     else:
-        df = pd.read_json(uploaded_file)
-except Exception as e:
-    st.error(f"Failed to load file: {e}")
+        df = pd.read_json(uploaded)
+except Exception as exc:
+    st.error(f"Could not read dataset: {exc}")
+    st.stop()
+
+if df.empty or len(df.columns) < 2:
+    st.error("Dataset must contain rows and at least two columns (features plus target).")
+    st.stop()
+
+with st.sidebar:
+    st.header("Experiment settings")
+    target = st.selectbox("Target column", df.columns.tolist())
+    task_choice = st.selectbox(
+        "Problem type",
+        ["Auto-detect", "Classification", "Regression"],
+        help="Auto-detection can be ambiguous for numeric targets with few unique values.",
+    )
+    drop_cols = st.multiselect(
+        "Exclude feature columns",
+        [col for col in df.columns if col != target],
+    )
+    cv_folds = st.slider("Cross-validation folds", min_value=2, max_value=10, value=5)
+    test_size = st.slider("Holdout test fraction", min_value=0.1, max_value=0.4, value=0.2, step=0.05)
+
+task = {"Auto-detect": "auto", "Classification": "classification", "Regression": "regression"}[task_choice]
+try:
+    detected_task = detect_problem_type(df[target], task=task)
+except ValueError as exc:
+    st.error(str(exc))
     st.stop()
 
 # ── Dataset Summary Metrics ───────────────────────────────────────────────────
@@ -242,7 +98,7 @@ with col_right:
     exp_tab1, exp_tab2, exp_tab3 = st.tabs(["📋 Data Preview", "📊 EDA", "🗂️ Column Profile"])
 
     with exp_tab1:
-        st.dataframe(df.head(20), width="stretch", height=260)
+        st.dataframe(df.head(20), use_container_width=True, height=260)
 
     with exp_tab2:
         num_df = df.select_dtypes(include=np.number)
@@ -257,7 +113,7 @@ with col_right:
             ax.tick_params(colors="#a0aec0")
             for spine in ax.spines.values(): spine.set_edgecolor("#2d3748")
             plt.tight_layout()
-            st.pyplot(fig)
+            st.pyplot(fig, use_container_width=True)
 
         elif eda_choice == "Correlation Heatmap":
             if len(num_df.columns) > 1:
@@ -267,7 +123,7 @@ with col_right:
                             ax=ax, linewidths=0.5, annot_kws={"size": 7})
                 ax.tick_params(colors="#a0aec0", labelsize=7)
                 plt.tight_layout()
-                st.pyplot(fig)
+                st.pyplot(fig, use_container_width=True)
             else:
                 st.info("Not enough numeric columns.")
 
@@ -283,11 +139,11 @@ with col_right:
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.3,
                         str(val), ha="center", color="#e2e8f0", fontsize=8)
             plt.tight_layout()
-            st.pyplot(fig)
+            st.pyplot(fig, use_container_width=True)
 
     with exp_tab3:
         profile = get_dataset_profile(df)
-        st.dataframe(profile, width="stretch", height=260)
+        st.dataframe(profile, use_container_width=True, height=260)
 
 # ── Step 3: Train ─────────────────────────────────────────────────────────────
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
@@ -315,8 +171,7 @@ if run_btn:
             st.error(f"Training failed: {e}")
             st.stop()
 
-# ── Results ───────────────────────────────────────────────────────────────────
-if "results" not in st.session_state:
+if "automl_results" not in st.session_state:
     st.stop()
 
 results       = st.session_state["results"]
@@ -362,7 +217,7 @@ with tab1:
     def highlight_best(s):
         return ["background-color: #1a3a2a; color: #68d391; font-weight: bold"
                 if i == 0 else "" for i in range(len(s))]
-    st.dataframe(results.style.apply(highlight_best, axis=0), width="stretch")
+    st.dataframe(results.style.apply(highlight_best, axis=0), use_container_width=True)
 
     csv_bytes = results.to_csv(index=False).encode("utf-8")
     st.download_button("📥 Export Leaderboard as CSV", data=csv_bytes,
@@ -384,7 +239,7 @@ with tab2:
     ax.invert_yaxis()
     for spine in ax.spines.values(): spine.set_edgecolor("#2d3748")
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(fig, use_container_width=True)
 
 # ── Tab 3: Feature Importance ─────────────────────────────────────────────────
 with tab3:
@@ -410,15 +265,14 @@ with tab3:
         ax.invert_yaxis()
         for spine in ax.spines.values(): spine.set_edgecolor("#2d3748")
         plt.tight_layout()
-        st.pyplot(fig)
-        st.dataframe(fi_df, width="stretch")
+        st.pyplot(fig, use_container_width=True)
+        st.dataframe(fi_df, use_container_width=True)
     else:
-        st.markdown('<div class="info-box">ℹ️ Feature importance is not available for this model type (e.g. SVM, KNN, Naive Bayes).</div>', unsafe_allow_html=True)
+        st.info("This estimator does not expose built-in feature importance or coefficients.")
 
-# ── Tab 4: Confusion Matrix ───────────────────────────────────────────────────
-with tab4:
-    if problem_type != "classification":
-        st.markdown('<div class="info-box">ℹ️ Confusion Matrix is only available for Classification problems.</div>', unsafe_allow_html=True)
+with matrix_tab:
+    if task != "classification":
+        st.info("Confusion matrices are available for classification tasks only.")
     else:
         cm_model_name = st.selectbox("Select Model", list(trained_models.keys()), index=0, key="cm_model")
         cm_model, cm_X_test, cm_y_test = trained_models[cm_model_name]
@@ -434,7 +288,7 @@ with tab4:
         ax.set_title(f"Confusion Matrix — {cm_model_name}", color="#e2e8f0", fontsize=12, pad=12)
         ax.tick_params(colors="#a0aec0")
         plt.tight_layout()
-        st.pyplot(fig)
+        st.pyplot(fig, use_container_width=True)
 
 # ── Tab 5: Hyperparameter Tuning ──────────────────────────────────────────────
 with tab5:
@@ -510,18 +364,8 @@ col_a, col_b = st.columns(2)
 with col_a:
     model_bytes = export_model(best_model)
     st.download_button(
-        f"💾 Download Best Model — {best_name} (.pkl)",
+        "Download best fitted pipeline (.pkl)",
         data=model_bytes,
-        file_name=f"{best_name.lower().replace(' ', '_')}_best_model.pkl",
+        file_name=f"{best_name.lower().replace(' ', '_')}_pipeline.pkl",
         mime="application/octet-stream",
-        use_container_width=True
-    )
-with col_b:
-    csv_bytes = results.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "📥 Download Full Leaderboard (.csv)",
-        data=csv_bytes,
-        file_name="automl_leaderboard.csv",
-        mime="text/csv",
-        use_container_width=True
     )
