@@ -168,6 +168,7 @@ def evaluate_models(
             rows.append(row)
             artifacts[name] = {
                 "pipeline": pipeline,
+                "X_test": X_test.copy(),
                 "y_test": y_test.copy(),
                 "predictions": np.asarray(predictions),
                 "error": None,
