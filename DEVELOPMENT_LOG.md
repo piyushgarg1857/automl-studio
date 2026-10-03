@@ -29,3 +29,16 @@ This file records meaningful development work, validation, known gaps, and hando
 | Date | Command | Result | Notes |
 |---|---|---|---|
 | 2026-10-03 | Targeted ModelBundle tests (2 tests) | Passed | Independently executed in Python 3.13.5 with scikit-learn; full repository suite and app/UI runtime remain pending. |
+
+
+## 2026-10-03 — Leakage-safe hyperparameter tuning UI
+
+### Changes
+- Added `tune_estimator()` to `evaluation_core.py`; tuning uses a pipeline with fold-local preprocessing and only the training split.
+- Added a Tuning tab to the Streamlit app, with model selection, search-space display, randomized iteration control, best CV score/parameters, and tuned-model export.
+- Added a focused test for the tuning core.
+- Confirmed a GitHub Actions unittest workflow is present on the branch.
+
+### Validation
+- Pending: run the full repository suite and inspect the GitHub Actions result for this branch/PR.
+- Manual Streamlit interaction and hosted deployment checks remain pending.
