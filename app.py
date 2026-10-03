@@ -174,8 +174,8 @@ for col, metric in zip(metric_cols, shown_metrics):
     value = best_row[metric]
     col.metric(metric, f"{value:.4f}" if pd.notna(value) else "—")
 
-leader_tab, chart_tab, explain_tab, matrix_tab, export_tab, tuning_tab = st.tabs(
-    ["Leaderboard", "Comparison dashboard", "Feature importance", "Confusion matrix", "Export", "Tuning"]
+leader_tab, insights_tab, chart_tab, explain_tab, matrix_tab, export_tab, tuning_tab = st.tabs(
+    ["Leaderboard", "Model insights", "Comparison dashboard", "Feature importance", "Confusion matrix", "Export", "Tuning"]
 )
 
 with leader_tab:
@@ -190,6 +190,56 @@ with leader_tab:
     if not failures.empty:
         with st.expander(f"Model errors ({len(failures)})"):
             st.dataframe(failures[["Model", "Error"]], use_container_width=True)
+
+with insights_tab:
+    st.subheader("Automated evaluation insights")
+    st.caption(
+        "These observations summarize the current evaluation results. "
+        "They are descriptive and should be considered alongside your data and use case."
+    )
+    if valid.empty:
+        st.info("Run a successful model evaluation to generate insights.")
+    else:
+        score_metric = "CV F1 Mean" if task == "classification" else "CV R² Mean"
+        error_metrics = ["RMSE", "MAE"]
+        timed = valid[valid["Evaluation Time (s)"].notna()].copy()
+        scored = valid[valid[score_metric].notna()].copy()
+        if not scored.empty:
+            top = scored.sort_values(score_metric, ascending=False).iloc[0]
+            st.markdown(
+                f"**Highest {score_metric}:** {top['Model']} "
+                f"({top[score_metric]:.4f})."
+            )
+            spread = float(scored[score_metric].max() - scored[score_metric].min())
+            st.write(
+                f"**Score range:** {spread:.4f} across {len(scored)} successful model(s) "
+                f"using {score_metric}."
+            )
+        if not timed.empty:
+            fastest = timed.sort_values("Evaluation Time (s)").iloc[0]
+            st.write(
+                f"**Shortest evaluation time:** {fastest['Model']} "
+                f"({fastest['Evaluation Time (s)']:.3f} seconds)."
+            )
+        available_errors = [m for m in error_metrics if m in valid.columns]
+        if task == "regression" and available_errors:
+            for metric in available_errors:
+                best_error = valid[valid[metric].notna()].sort_values(metric).head(1)
+                if not best_error.empty:
+                    row = best_error.iloc[0]
+                    st.write(f"**Lowest {metric}:** {row['Model']} ({row[metric]:.4f}).")
+        if "Error" in results:
+            failed = results[results["Error"].notna()]
+            if not failed.empty:
+                st.warning(
+                    f"{len(failed)} model(s) failed. Expand the model errors section "
+                    "in the Leaderboard tab to inspect details."
+                )
+        st.info(
+            "Tip: Compare cross-validation scores with holdout metrics. "
+            "A small score difference does not by itself establish that one model "
+            "will perform better on future data."
+        )
 
 with chart_tab:
     st.subheader("Compare model performance")
