@@ -5,7 +5,7 @@ only on each training fold (and never on the holdout test set).
 """
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Callable, Mapping
 
 import numpy as np
 import pandas as pd
@@ -95,6 +95,7 @@ def evaluate_models(
     random_state: int = 42,
     cv_folds: int = 5,
     scale_numeric: bool = True,
+    progress_callback: Callable[[dict], None] | None = None,
 ) -> tuple[pd.DataFrame, dict[str, dict]]:
     """Evaluate estimators with a holdout set and leakage-safe cross-validation.
 
@@ -141,7 +142,12 @@ def evaluate_models(
         cv = KFold(n_splits=folds, shuffle=True, random_state=random_state)
         scoring = "r2"
 
-    for name, estimator in models.items():
+    total_models = len(models)
+    for model_index, (name, estimator) in enumerate(models.items(), start=1):
+        import time
+        model_started = time.perf_counter()
+        if progress_callback:
+            progress_callback({"model": name, "index": model_index, "total": total_models, "status": "started"})
         pipeline = Pipeline(
             [("preprocess", build_preprocessor(X_train, scale_numeric=scale_numeric)),
              ("model", estimator)]
@@ -177,6 +183,8 @@ def evaluate_models(
                     "CV R² Mean": float(np.mean(cv_scores)),
                     "CV R² Std": float(np.std(cv_scores)),
                 }
+            elapsed = time.perf_counter() - model_started
+            row["Evaluation Time (s)"] = round(elapsed, 3)
             rows.append(row)
             if label_encoder is not None:
                 # Keep original class names for display in the UI.
@@ -199,10 +207,16 @@ def evaluate_models(
                 "predictions": np.asarray(display_predictions),
                 "label_encoder": label_encoder,
                 "error": None,
+                "evaluation_time": round(elapsed, 3),
             }
+            if progress_callback:
+                progress_callback({"model": name, "index": model_index, "total": total_models, "status": "completed", "elapsed": round(elapsed, 3)})
         except Exception as exc:  # preserve failures so users can diagnose them
-            artifacts[name] = {"pipeline": None, "error": f"{type(exc).__name__}: {exc}"}
-            rows.append({"Model": name, "Error": artifacts[name]["error"]})
+            elapsed = time.perf_counter() - model_started
+            artifacts[name] = {"pipeline": None, "error": f"{type(exc).__name__}: {exc}", "evaluation_time": round(elapsed, 3)}
+            rows.append({"Model": name, "Error": artifacts[name]["error"], "Evaluation Time (s)": round(elapsed, 3)})
+            if progress_callback:
+                progress_callback({"model": name, "index": model_index, "total": total_models, "status": "failed", "elapsed": round(elapsed, 3)})
 
     leaderboard = pd.DataFrame(rows)
     score_col = "CV F1 Mean" if task == "classification" else "CV R² Mean"
