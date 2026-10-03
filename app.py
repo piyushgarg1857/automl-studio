@@ -175,8 +175,8 @@ for col, metric in zip(metric_cols, shown_metrics):
     value = best_row[metric]
     col.metric(metric, f"{value:.4f}" if pd.notna(value) else "—")
 
-leader_tab, insights_tab, chart_tab, explain_tab, matrix_tab, export_tab, tuning_tab = st.tabs(
-    ["Leaderboard", "Model insights", "Comparison dashboard", "Feature importance", "Confusion matrix", "Export", "Tuning"]
+leader_tab, insights_tab, chart_tab, explain_tab, matrix_tab, predict_tab, export_tab, tuning_tab = st.tabs(
+    ["Leaderboard", "Model insights", "Comparison dashboard", "Feature importance", "Confusion matrix", "Prediction playground", "Export", "Tuning"]
 )
 
 with leader_tab:
@@ -470,6 +470,106 @@ with matrix_tab:
             plt.close(fig)
         else:
             st.info("No classification model completed successfully.")
+
+
+with predict_tab:
+    st.subheader("Prediction playground")
+    st.caption(
+        "Generate predictions from a fitted model using new input values. "
+        "Inputs are passed through the same fitted preprocessing pipeline."
+    )
+    predict_models = [
+        name for name, item in artifacts.items() if item.get("pipeline") is not None
+    ]
+    if not predict_models:
+        st.info("Run a successful model evaluation before generating predictions.")
+    else:
+        prediction_model = st.selectbox(
+            "Model for prediction", predict_models, key="playground_model"
+        )
+        prediction_artifact = artifacts[prediction_model]
+        reference_X = prediction_artifact["X_test"]
+        st.markdown("#### Single prediction")
+        input_values = {}
+        with st.form("single_prediction_form"):
+            input_cols = st.columns(2)
+            for idx, feature in enumerate(reference_X.columns):
+                series = reference_X[feature]
+                with input_cols[idx % 2]:
+                    if pd.api.types.is_numeric_dtype(series):
+                        numeric_values = pd.to_numeric(series, errors="coerce").dropna()
+                        default = float(numeric_values.median()) if not numeric_values.empty else 0.0
+                        input_values[feature] = st.number_input(
+                            str(feature), value=default, key=f"pred_{feature}"
+                        )
+                    else:
+                        choices = series.dropna().astype(str).unique().tolist()
+                        choices = choices[:200] if choices else ["Unknown"]
+                        input_values[feature] = st.selectbox(
+                            str(feature), choices, key=f"pred_{feature}"
+                        )
+            single_submit = st.form_submit_button("Generate prediction", type="primary")
+        if single_submit:
+            row = pd.DataFrame([input_values], columns=reference_X.columns)
+            try:
+                raw_prediction = prediction_artifact["pipeline"].predict(row)
+                encoder = prediction_artifact.get("label_encoder")
+                if task == "classification":
+                    label = encoder.inverse_transform(np.asarray(raw_prediction, dtype=int))[0] if encoder is not None else raw_prediction[0]
+                    st.success(f"Predicted class: {label}")
+                    estimator = prediction_artifact["pipeline"].named_steps["model"]
+                    if hasattr(estimator, "predict_proba"):
+                        probabilities = prediction_artifact["pipeline"].predict_proba(row)[0]
+                        classes = estimator.classes_
+                        display_classes = encoder.inverse_transform(np.asarray(classes, dtype=int)) if encoder is not None else classes
+                        st.dataframe(
+                            pd.DataFrame({"Class": display_classes, "Probability": probabilities}).sort_values(
+                                "Probability", ascending=False
+                            ),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                else:
+                    st.success(f"Predicted value: {float(np.asarray(raw_prediction).ravel()[0]):.6g}")
+            except Exception as exc:
+                st.error(f"Prediction failed: {type(exc).__name__}: {exc}")
+
+        st.divider()
+        st.markdown("#### Batch predictions")
+        batch_file = st.file_uploader(
+            "Upload CSV with feature columns", type=["csv"], key="batch_prediction_file"
+        )
+        if batch_file is not None:
+            try:
+                batch_X = pd.read_csv(batch_file)
+                missing = [col for col in reference_X.columns if col not in batch_X.columns]
+                extra = [col for col in batch_X.columns if col not in reference_X.columns]
+                if missing:
+                    st.error(f"Missing required feature columns: {', '.join(map(str, missing))}")
+                elif extra:
+                    st.warning(f"Extra columns will be ignored: {', '.join(map(str, extra))}")
+                    batch_X = batch_X[reference_X.columns]
+                else:
+                    batch_X = batch_X[reference_X.columns]
+                if not missing:
+                    batch_predictions = prediction_artifact["pipeline"].predict(batch_X)
+                    encoder = prediction_artifact.get("label_encoder")
+                    if task == "classification" and encoder is not None:
+                        batch_predictions = encoder.inverse_transform(
+                            np.asarray(batch_predictions, dtype=int)
+                        )
+                    output = batch_X.copy()
+                    output["Prediction"] = batch_predictions
+                    st.dataframe(output.head(100), use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Download predictions CSV",
+                        output.to_csv(index=False).encode("utf-8"),
+                        file_name="automl_predictions.csv",
+                        mime="text/csv",
+                        key="download_batch_predictions",
+                    )
+            except Exception as exc:
+                st.error(f"Could not process batch file: {type(exc).__name__}: {exc}")
 
 with export_tab:
     st.write(f"Selected export model: **{best_name}**")
