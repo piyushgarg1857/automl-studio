@@ -2,6 +2,18 @@
 
 This file records meaningful development work, validation, known gaps, and handoff notes.
 
+## 2026-10-03 — Documentation consolidation and project status
+
+### Changes
+- Added a professional root README with project overview, capabilities, architecture, Mermaid flowcharts, evaluation design, setup, testing, export/persistence notes, and known gaps.
+- Updated the development checklist to identify delivered milestones #10–#12 and track #13 as planned.
+- Refreshed the AI handoff document to reflect the current modules, completed feature milestones, and outstanding work.
+
+### Validation
+- Documentation was updated against the repository tree, existing checklist/log, and inspected evaluation-core implementation.
+- No application code or test suite was run as part of this documentation-only update.
+- User reported that the experiment-history work was tested successfully on 2026-10-03.
+
 ## 2026-10-03 — Export label handling, tests, and project handoff
 
 ### Scope
@@ -29,7 +41,6 @@ This file records meaningful development work, validation, known gaps, and hando
 |---|---|---|---|
 | 2026-10-03 | Targeted ModelBundle tests (2 tests) | Passed | Independently executed in Python 3.13.5 with scikit-learn; full repository suite and app/UI runtime remain pending. |
 
-
 ## 2026-10-03 — Leakage-safe hyperparameter tuning UI
 
 ### Changes
@@ -41,7 +52,6 @@ This file records meaningful development work, validation, known gaps, and hando
 ### Validation
 - Manual Streamlit interaction and hosted deployment checks remain pending.
 
-
 ## 2026-10-03 — Evaluation regression and edge-case tests
 
 ### Changes
@@ -52,7 +62,6 @@ This file records meaningful development work, validation, known gaps, and hando
 
 ### Validation
 - The PR branch's GitHub Actions run passed; the merged-branch workflow was checked separately and completed successfully.
-
 
 ## 2026-10-03 — Multiclass and model-failure coverage
 
