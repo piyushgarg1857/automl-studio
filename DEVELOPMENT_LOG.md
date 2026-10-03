@@ -42,3 +42,16 @@ This file records meaningful development work, validation, known gaps, and hando
 ### Validation
 - Pending: run the full repository suite and inspect the GitHub Actions result for this branch/PR.
 - Manual Streamlit interaction and hosted deployment checks remain pending.
+
+
+## 2026-10-03 — Evaluation regression and edge-case tests
+
+### Changes
+- Added tests for regression metrics and returned artifacts.
+- Added a mixed-type dataset test with missing numeric and categorical feature values.
+- Added a mismatched-row-count validation test.
+- Updated the development checklist to distinguish completed coverage from remaining model-failure tests.
+
+### Validation
+- GitHub Actions is expected to run the full unittest suite for this branch/PR.
+- Record the final run result after the workflow completes; no test result is assumed from code inspection.
