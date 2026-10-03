@@ -15,60 +15,8 @@ from model_bundle import ModelBundle
 from experiment_store import save_experiment, list_experiments, load_experiment, delete_experiment
 
 st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
-
-# Optional presentation layer: isolated from the modeling/evaluation logic.
-st.markdown("""
-<style>
-:root { --ink:#17233b; --muted:#64748b; --accent:#635bdb; --line:#e7eaf2; }
-[data-testid="stAppViewContainer"] { background: #f6f7fb; }
-[data-testid="stHeader"] { background: rgba(246,247,251,.85); }
-[data-testid="stSidebar"] { background: #fff; border-right: 1px solid var(--line); }
-.block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1500px; }
-h1, h2, h3 { color: var(--ink); letter-spacing: -.025em; }
-p, label, [data-testid="stCaptionContainer"] { color: var(--muted); }
-[data-testid="stMetric"] {
-  background: #fff; border: 1px solid var(--line); border-radius: 14px;
-  padding: 16px 18px; box-shadow: 0 3px 14px rgba(26,39,70,.04);
-}
-[data-testid="stMetricLabel"] { color: #667085; font-size: .82rem; }
-[data-testid="stMetricValue"] { color: var(--ink); font-weight: 700; }
-.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] button {
-  border-radius: 10px; font-weight: 600; min-height: 2.7rem;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.stButton > button:hover, .stDownloadButton > button:hover {
-  transform: translateY(-1px); box-shadow: 0 5px 14px rgba(99,91,219,.13);
-}
-button[kind="primary"], [data-testid="stFormSubmitButton"] button[kind="primary"] {
-  background: var(--accent); border-color: var(--accent);
-}
-[data-testid="stTabs"] [role="tab"] { font-weight: 600; padding: .7rem .9rem; }
-[data-testid="stDataFrame"], [data-testid="stTable"] {
-  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-}
-[data-testid="stExpander"] { background:#fff; border:1px solid var(--line); border-radius:12px; }
-[data-testid="stFileUploader"] section {
-  background:#fff; border:1.5px dashed #c8cce0; border-radius:14px;
-}
-@media (max-width: 768px) {
-  .block-container { padding: 1rem 1rem 2rem; }
-  [data-testid="stMetric"] { padding: 12px; }
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div style="display:flex;align-items:center;gap:14px;margin:0 0 1.2rem 0;">
-  <div style="width:48px;height:48px;border-radius:15px;background:linear-gradient(135deg,#635bdb,#3984dc);
-              display:flex;align-items:center;justify-content:center;color:white;font-size:25px;
-              box-shadow:0 8px 20px rgba(99,91,219,.2);">⚡</div>
-  <div>
-    <div style="font-size:1.85rem;line-height:1.15;font-weight:750;color:#17233b;letter-spacing:-.04em;">AutoML Studio</div>
-    <div style="font-size:.92rem;color:#64748b;margin-top:5px;">A focused workspace for tabular machine learning</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-st.caption("Leakage-safe evaluation  ·  Model comparison  ·  Explainability  ·  Experiment tracking")
+st.title("⚡ AutoML Studio")
+st.caption("Tabular AutoML · Leakage-safe evaluation · Model comparison")
 
 def render_standalone_history():
     """Show saved runs even when no dataset is uploaded."""
