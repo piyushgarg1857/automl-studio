@@ -175,7 +175,7 @@ for col, metric in zip(metric_cols, shown_metrics):
     col.metric(metric, f"{value:.4f}" if pd.notna(value) else "—")
 
 leader_tab, chart_tab, explain_tab, matrix_tab, export_tab, tuning_tab = st.tabs(
-    ["Leaderboard", "Metric chart", "Feature importance", "Confusion matrix", "Export", "Tuning"]
+    ["Leaderboard", "Comparison dashboard", "Feature importance", "Confusion matrix", "Export", "Tuning"]
 )
 
 with leader_tab:
@@ -192,23 +192,63 @@ with leader_tab:
             st.dataframe(failures[["Model", "Error"]], use_container_width=True)
 
 with chart_tab:
+    st.subheader("Compare model performance")
     numeric_metrics = [
         c for c in valid.select_dtypes(include=np.number).columns if c != "Model"
     ]
     if numeric_metrics:
-        metric = st.selectbox("Metric", numeric_metrics)
-        chart = valid.sort_values(
-            metric, ascending=(metric in {"RMSE", "MAE"})
+        model_options = valid["Model"].tolist()
+        chosen_models = st.multiselect(
+            "Models to compare",
+            options=model_options,
+            default=model_options,
+            key="comparison_models",
         )
-        fig, ax = plt.subplots(figsize=(10, max(4, len(chart) * 0.35)))
-        ax.barh(chart["Model"], chart[metric])
-        ax.set_xlabel(metric)
-        ax.invert_yaxis()
-        fig.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
+        default_metrics = [
+            metric for metric in numeric_metrics
+            if metric not in {"CV F1 Std", "CV R² Std"}
+        ]
+        chosen_metrics = st.multiselect(
+            "Metrics to visualize",
+            options=numeric_metrics,
+            default=default_metrics,
+            key="comparison_metrics",
+            help="Metrics use separate charts because their scales and meanings differ.",
+        )
+        comparison = valid[valid["Model"].isin(chosen_models)].copy()
+        if comparison.empty:
+            st.info("Select at least one model to display the comparison.")
+        else:
+            st.caption(
+                "The table and charts show the selected models only. "
+                "Lower values are preferable for error and time metrics; "
+                "higher values are preferable for scores."
+            )
+            display_cols = ["Model"] + chosen_metrics
+            st.dataframe(
+                comparison[display_cols],
+                use_container_width=True,
+                hide_index=True,
+            )
+            for start in range(0, len(chosen_metrics), 2):
+                chart_cols = st.columns(min(2, len(chosen_metrics) - start))
+                for offset, metric in enumerate(chosen_metrics[start:start + 2]):
+                    chart = comparison.sort_values(
+                        metric,
+                        ascending=metric in {"RMSE", "MAE", "Evaluation Time (s)"},
+                    )
+                    fig, ax = plt.subplots(
+                        figsize=(8, max(3.5, len(chart) * 0.32))
+                    )
+                    ax.barh(chart["Model"], chart[metric])
+                    ax.set_xlabel(metric)
+                    ax.set_title(metric)
+                    ax.invert_yaxis()
+                    fig.tight_layout()
+                    chart_cols[offset].pyplot(fig, use_container_width=True)
+                    plt.close(fig)
     else:
-        st.info("No numeric metrics are available to chart.")
+        st.info("No numeric metrics are available to compare.")
 
 with explain_tab:
     successful = [
