@@ -27,7 +27,7 @@ from sklearn.model_selection import (
     train_test_split,
 )
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 
 
 def detect_problem_type(
@@ -107,6 +107,17 @@ def evaluate_models(
     if y.isna().any():
         raise ValueError("Target contains missing values; clean or filter it first")
     task = detect_problem_type(y, task=problem_type)
+    # XGBoost requires class labels encoded as consecutive integers (0..n-1).
+    # Encode classification targets consistently before splitting/CV.
+    label_encoder = None
+    original_y = y.copy()
+    if task == "classification":
+        label_encoder = LabelEncoder()
+        y = pd.Series(
+            label_encoder.fit_transform(y),
+            index=y.index,
+            name=y.name,
+        )
     stratify = y if task == "classification" else None
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -166,11 +177,26 @@ def evaluate_models(
                     "CV R² Std": float(np.std(cv_scores)),
                 }
             rows.append(row)
+            if label_encoder is not None:
+                # Keep original class names for display in the UI.
+                display_y_test = pd.Series(
+                    label_encoder.inverse_transform(np.asarray(y_test, dtype=int)),
+                    index=y_test.index,
+                    name=original_y.name,
+                )
+                display_predictions = label_encoder.inverse_transform(
+                    np.asarray(predictions, dtype=int)
+                )
+            else:
+                display_y_test = y_test.copy()
+                display_predictions = np.asarray(predictions)
+
             artifacts[name] = {
                 "pipeline": pipeline,
                 "X_test": X_test.copy(),
-                "y_test": y_test.copy(),
-                "predictions": np.asarray(predictions),
+                "y_test": display_y_test,
+                "predictions": np.asarray(display_predictions),
+                "label_encoder": label_encoder,
                 "error": None,
             }
         except Exception as exc:  # preserve failures so users can diagnose them
