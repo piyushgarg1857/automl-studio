@@ -18,11 +18,96 @@ st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
 st.title("⚡ AutoML Studio")
 st.caption("Tabular AutoML · Leakage-safe evaluation · Model comparison")
 
+def render_standalone_history():
+    """Show saved runs even when no dataset is uploaded."""
+    st.subheader("Saved experiment history")
+    st.caption(
+        "Your saved runs are stored in the local SQLite database. "
+        "You can review, load, compare, or delete them without uploading a dataset."
+    )
+    try:
+        history = list_experiments()
+    except Exception as exc:
+        st.error(f"Could not read experiment history: {type(exc).__name__}: {exc}")
+        return
+
+    if not history:
+        st.info("No saved experiments yet. Upload a dataset, run an evaluation, and save it from the Experiment history tab.")
+        return
+
+    history_df = pd.DataFrame(history).rename(
+        columns={
+            "id": "ID", "name": "Experiment", "created_at": "Saved at (UTC)",
+            "task": "Task", "target": "Target", "model_count": "Models",
+            "score_metric": "Tracked metric", "score_value": "Tracked score",
+        }
+    )
+    st.dataframe(history_df, use_container_width=True, hide_index=True)
+    selected_id = st.selectbox(
+        "Choose a saved experiment",
+        [row["id"] for row in history],
+        format_func=lambda value: next(
+            f"#{row['id']} · {row['name']}" for row in history if row["id"] == value
+        ),
+        key="standalone_history_selection",
+    )
+    cols = st.columns(3)
+    if cols[0].button("Load saved run", use_container_width=True, key="standalone_load"):
+        try:
+            payload = load_experiment(selected_id)
+            st.session_state["automl_results"] = payload["leaderboard"]
+            st.session_state["automl_artifacts"] = payload["artifacts"]
+            meta = next(row for row in history if row["id"] == selected_id)
+            st.session_state["automl_task"] = meta["task"]
+            st.session_state["standalone_loaded_id"] = selected_id
+            st.success("Saved leaderboard and fitted models loaded into this session.")
+        except Exception as exc:
+            st.error(f"Could not load experiment: {type(exc).__name__}: {exc}")
+    if cols[1].button("Delete saved run", use_container_width=True, key="standalone_delete"):
+        try:
+            if delete_experiment(selected_id):
+                st.success(f"Experiment #{selected_id} deleted.")
+                st.rerun()
+            else:
+                st.warning("That experiment was not found.")
+        except Exception as exc:
+            st.error(f"Could not delete experiment: {type(exc).__name__}: {exc}")
+    if cols[2].button("Compare saved runs", use_container_width=True, key="standalone_compare"):
+        st.session_state["standalone_show_comparison"] = True
+
+    loaded_id = st.session_state.get("standalone_loaded_id")
+    if loaded_id is not None:
+        st.markdown("#### Loaded experiment leaderboard")
+        try:
+            loaded = load_experiment(loaded_id)
+            st.dataframe(loaded["leaderboard"], use_container_width=True, hide_index=True)
+            st.caption("To use the loaded model in the prediction tools, upload a dataset to enter the full AutoML workspace.")
+        except Exception as exc:
+            st.warning(f"Could not display the loaded run: {exc}")
+
+    if st.session_state.get("standalone_show_comparison"):
+        st.markdown("#### Compare saved runs")
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "Experiment": row["name"], "Task": row["task"],
+                    "Target": row["target"], "Metric": row["score_metric"],
+                    "Score": row["score_value"], "Models": row["model_count"],
+                }
+                for row in history
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption("Compare scores only when datasets, targets, tasks, and metrics are compatible.")
+
+
 uploaded = st.file_uploader(
     "Upload CSV, Excel, or JSON dataset", type=["csv", "xlsx", "json"]
 )
 if uploaded is None:
-    st.info("Upload a dataset to explore it and evaluate machine-learning models.")
+    st.info("Upload a dataset to explore it and evaluate machine-learning models, or use saved history below.")
+    render_standalone_history()
     st.stop()
 
 try:
