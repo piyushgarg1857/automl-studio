@@ -80,16 +80,44 @@ with st.expander("Dataset preview and column profile", expanded=True):
     with profile_tab:
         st.dataframe(get_dataset_profile(df), use_container_width=True)
 
-if st.button("Run model evaluation", type="primary", use_container_width=True):
+model_bank = CLASSIFIERS if detected_task == "classification" else REGRESSORS
+st.subheader("Model selection")
+evaluation_mode = st.radio(
+    "Evaluation mode",
+    ["All models", "Selected models"],
+    horizontal=True,
+    help="Run every available model or choose a custom subset for this experiment.",
+)
+if evaluation_mode == "Selected models":
+    selected_model_names = st.multiselect(
+        "Models to evaluate",
+        options=list(model_bank.keys()),
+        default=list(model_bank.keys()),
+        help="Remove models you do not want to include. Select all to run the full model bank.",
+    )
+    models_to_run = {
+        name: model_bank[name]
+        for name in selected_model_names
+    }
+else:
+    models_to_run = model_bank
+
+st.caption(f"Ready to evaluate {len(models_to_run)} of {len(model_bank)} available models.")
+
+if st.button(
+    "Run model evaluation",
+    type="primary",
+    use_container_width=True,
+    disabled=not models_to_run,
+):
     X = df.drop(columns=[target] + drop_cols)
     y = df[target]
-    model_bank = CLASSIFIERS if detected_task == "classification" else REGRESSORS
     with st.spinner("Evaluating models. Preprocessing is fitted inside each CV fold..."):
         try:
             leaderboard, artifacts = evaluate_models(
                 X,
                 y,
-                model_bank,
+                models_to_run,
                 problem_type=detected_task,
                 test_size=test_size,
                 cv_folds=cv_folds,
