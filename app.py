@@ -1,4 +1,5 @@
 import pickle
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -112,6 +113,20 @@ if st.button(
 ):
     X = df.drop(columns=[target] + drop_cols)
     y = df[target]
+    progress_bar = st.progress(0, text="Preparing evaluation...")
+    progress_text = st.empty()
+    started_at = time.perf_counter()
+
+    def update_evaluation_progress(event):
+        fraction = event["index"] / event["total"]
+        progress_bar.progress(fraction, text=f"Model {event['index']} of {event['total']}")
+        if event["status"] == "started":
+            progress_text.info(f"Evaluating {event['model']}...")
+        else:
+            progress_text.write(
+                f"{event['model']}: {event['status']} · {event.get('elapsed', 0):.2f}s"
+            )
+
     with st.spinner("Evaluating models. Preprocessing is fitted inside each CV fold..."):
         try:
             leaderboard, artifacts = evaluate_models(
@@ -121,7 +136,10 @@ if st.button(
                 problem_type=detected_task,
                 test_size=test_size,
                 cv_folds=cv_folds,
+                progress_callback=update_evaluation_progress,
             )
+            progress_bar.progress(1.0, text="Evaluation complete")
+            st.success(f"Evaluation finished in {time.perf_counter() - started_at:.2f} seconds.")
             st.session_state["automl_results"] = leaderboard
             st.session_state["automl_artifacts"] = artifacts
             st.session_state["automl_task"] = detected_task
