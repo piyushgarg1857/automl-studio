@@ -18,7 +18,7 @@ Use this checklist to track project completion. Update it as work is completed; 
 - [x] Encode classification targets for estimators that require integer classes.
 - [ ] Add broader tests for missing values, multiclass edge cases, and small class counts.
 - [x] Add tests for regression metrics and input-validation handling.
-- [ ] Verify model-failure handling tests in CI.
+- [x] Verify model-failure handling tests in CI.
 - [ ] Review whether target encoding and class handling remain compatible with all supported estimators.
 
 ## Model export
@@ -35,6 +35,6 @@ Use this checklist to track project completion. Update it as work is completed; 
 ## Quality and delivery
 - [ ] Run `python -m unittest discover -s tests -v` before each merge.
 - [x] Add CI workflow to run tests automatically on pushes and pull requests.
-- [ ] Test the Streamlit app manually with classification and regression datasets.
+- [x] Test the Streamlit app manually with classification and regression datasets (user-reported: Iris classification and Auto MPG regression completed without errors).
 - [ ] Verify deployment configuration and hosted app.
 - [ ] Update `DEVELOPMENT_LOG.md` and `AI_CONTEXT.md` after substantial changes.
