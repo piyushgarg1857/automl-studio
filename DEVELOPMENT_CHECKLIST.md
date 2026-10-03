@@ -38,3 +38,15 @@ Use this checklist to track project completion. Update it as work is completed; 
 - [x] Test the Streamlit app manually with classification and regression datasets (user-reported: Iris classification and Auto MPG regression completed without errors).
 - [ ] Verify deployment configuration and hosted app.
 - [ ] Update `DEVELOPMENT_LOG.md` and `AI_CONTEXT.md` after substantial changes.
+
+## Product features delivered
+
+- [x] **#10 — Feature Importance & Explainability:** feature-importance visualization where supported (implementation and prior completion recorded in project history).
+- [x] **#11 — Prediction Playground:** interactive prediction workflow for a fitted model (implementation and prior completion recorded in project history).
+- [x] **#12 — Model Persistence & Experiment History:** SQLite-backed saved runs and history UI; history can be opened without uploading a dataset (user confirmed testing complete on 2026-10-03).
+
+> Feature completion reflects the reported implementation and user testing. It does not imply that every deployment, edge case, or persistence durability concern has been independently audited.
+
+## Next planned feature
+
+- [ ] **#13 — Downloadable Model Evaluation Report:** generate a shareable report containing task/model details, metrics, and relevant diagnostics. Not implemented yet.
