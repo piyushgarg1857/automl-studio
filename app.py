@@ -7,8 +7,8 @@ import seaborn as sns
 import streamlit as st
 from sklearn.metrics import confusion_matrix
 
-from evaluation_core import detect_problem_type, evaluate_models
-from ml_engine import CLASSIFIERS, REGRESSORS, get_dataset_profile
+from evaluation_core import detect_problem_type, evaluate_models, tune_estimator
+from ml_engine import CLASSIFIERS, REGRESSORS, TUNING_GRIDS, get_dataset_profile
 from model_bundle import ModelBundle
 
 st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
@@ -128,8 +128,8 @@ for col, metric in zip(metric_cols, shown_metrics):
     value = best_row[metric]
     col.metric(metric, f"{value:.4f}" if pd.notna(value) else "—")
 
-leader_tab, chart_tab, explain_tab, matrix_tab, export_tab = st.tabs(
-    ["Leaderboard", "Metric chart", "Feature importance", "Confusion matrix", "Export"]
+leader_tab, chart_tab, explain_tab, matrix_tab, export_tab, tuning_tab = st.tabs(
+    ["Leaderboard", "Metric chart", "Feature importance", "Confusion matrix", "Export", "Tuning"]
 )
 
 with leader_tab:
@@ -257,3 +257,65 @@ with export_tab:
         file_name=f"{best_name.lower().replace(' ', '_')}_pipeline.pkl",
         mime="application/octet-stream",
     )
+
+
+with tuning_tab:
+    st.subheader("Hyperparameter tuning")
+    st.caption(
+        "Search runs only on the training split. The holdout test data is not used "
+        "to choose parameters, and preprocessing is fitted inside each CV fold."
+    )
+    available = CLASSIFIERS if task == "classification" else REGRESSORS
+    tunable_names = [name for name in TUNING_GRIDS if name in available]
+    if not tunable_names:
+        st.info("No tuning grids are configured for this problem type.")
+    else:
+        selected_tune = st.selectbox("Model to tune", tunable_names, key="tuning_model")
+        st.write("Search space")
+        st.json(TUNING_GRIDS[selected_tune])
+        iterations = st.slider(
+            "Randomized search iterations", min_value=1, max_value=30, value=10,
+            key="tuning_iterations",
+            help="More iterations may find better settings but take longer.",
+        )
+        if st.button("Start hyperparameter tuning", type="primary", key="start_tuning"):
+            X_tune = df.drop(columns=[target] + drop_cols)
+            y_tune = df[target]
+            with st.spinner("Searching parameter combinations..."):
+                try:
+                    search, encoder, tuned_task = tune_estimator(
+                        X_tune,
+                        y_tune,
+                        available[selected_tune],
+                        TUNING_GRIDS[selected_tune],
+                        problem_type=task,
+                        test_size=test_size,
+                        cv_folds=cv_folds,
+                        n_iter=iterations,
+                    )
+                    st.session_state["tuning_result"] = {
+                        "model": selected_tune,
+                        "search": search,
+                        "encoder": encoder,
+                        "task": tuned_task,
+                    }
+                except Exception as exc:
+                    st.error(f"Tuning failed: {type(exc).__name__}: {exc}")
+
+        tuned = st.session_state.get("tuning_result")
+        if tuned:
+            st.markdown(f"**Last tuned model:** {tuned['model']}")
+            st.metric("Best cross-validation score", f"{tuned['search'].best_score_:.4f}")
+            st.write("Best parameters")
+            st.json(tuned["search"].best_params_)
+            tuned_bundle = ModelBundle(
+                tuned["search"].best_estimator_,
+                tuned.get("encoder"),
+            )
+            st.download_button(
+                "Download tuned model (.pkl)",
+                data=pickle.dumps(tuned_bundle),
+                file_name=f"{tuned['model'].lower().replace(' ', '_')}_tuned.pkl",
+                mime="application/octet-stream",
+                key="download_tuned_model",
+            )
