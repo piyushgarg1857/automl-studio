@@ -7,6 +7,7 @@ import pandas as pd
 import seaborn as sns
 import streamlit as st
 from sklearn.metrics import confusion_matrix
+from sklearn.inspection import permutation_importance
 
 from evaluation_core import detect_problem_type, evaluate_models, tune_estimator
 from ml_engine import CLASSIFIERS, REGRESSORS, TUNING_GRIDS, get_dataset_profile
@@ -301,41 +302,133 @@ with chart_tab:
         st.info("No numeric metrics are available to compare.")
 
 with explain_tab:
+    st.subheader("Feature importance and explainability")
+    st.caption(
+        "Explore which input features are associated with a fitted model's predictions. "
+        "Importance is model- and dataset-dependent; it does not establish causation."
+    )
     successful = [
         name for name, item in artifacts.items() if item.get("pipeline") is not None
     ]
     if successful:
         selected = st.selectbox("Model", successful, key="importance_model")
+        method = st.radio(
+            "Importance method",
+            ["Permutation importance", "Built-in importance / coefficients"],
+            horizontal=True,
+            key="importance_method",
+            help=(
+                "Permutation importance works with any fitted estimator. Built-in "
+                "importance is available only for estimators that expose it."
+            ),
+        )
         pipeline = artifacts[selected]["pipeline"]
-        estimator = pipeline.named_steps["model"]
-        preprocessor = pipeline.named_steps["preprocess"]
-        importance = getattr(estimator, "feature_importances_", None)
-        coefficients = getattr(estimator, "coef_", None)
-        if importance is not None or coefficients is not None:
-            names = preprocessor.get_feature_names_out()
-            values = np.asarray(
-                importance if importance is not None else coefficients
+        if method == "Built-in importance / coefficients":
+            estimator = pipeline.named_steps["model"]
+            preprocessor = pipeline.named_steps["preprocess"]
+            importance = getattr(estimator, "feature_importances_", None)
+            coefficients = getattr(estimator, "coef_", None)
+            if importance is not None or coefficients is not None:
+                names = preprocessor.get_feature_names_out()
+                values = np.asarray(
+                    importance if importance is not None else coefficients
+                )
+                if values.ndim > 1:
+                    values = np.mean(np.abs(values), axis=0)
+                if len(names) == len(values):
+                    fi = pd.DataFrame(
+                        {"Feature": names, "Importance": np.abs(values)}
+                    ).sort_values("Importance", ascending=False).head(25)
+                    st.dataframe(fi, use_container_width=True, hide_index=True)
+                    fig, ax = plt.subplots(figsize=(9, max(4, len(fi) * 0.3)))
+                    ax.barh(fi["Feature"], fi["Importance"])
+                    ax.set_xlabel("Importance (absolute magnitude)")
+                    ax.invert_yaxis()
+                    fig.tight_layout()
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+                else:
+                    st.info(
+                        "Feature names could not be aligned with this model's importance values."
+                    )
+            else:
+                st.info(
+                    "This estimator does not expose built-in importance or coefficients. "
+                    "Choose permutation importance to explain it."
+                )
+        else:
+            item = artifacts[selected]
+            st.write(
+                "Permutation importance measures how much the selected score changes "
+                "when one input column is shuffled. Larger drops indicate greater "
+                "reliance on that column for this evaluation dataset."
             )
-            if values.ndim > 1:
-                values = np.mean(np.abs(values), axis=0)
-            if len(names) == len(values):
-                fi = pd.DataFrame(
-                    {"Feature": names, "Importance": np.abs(values)}
-                ).sort_values("Importance", ascending=False).head(25)
+            repeats = st.slider(
+                "Permutation repeats", min_value=3, max_value=15, value=5,
+                key="permutation_repeats",
+                help="More repeats make the estimate less noisy but take longer.",
+            )
+            if st.button(
+                "Calculate permutation importance",
+                key="calculate_permutation_importance",
+            ):
+                y_for_scoring = item["y_test"]
+                if item.get("label_encoder") is not None:
+                    y_for_scoring = item["label_encoder"].transform(
+                        np.asarray(y_for_scoring)
+                    )
+                scoring = "f1_weighted" if task == "classification" else "r2"
+                with st.spinner("Calculating permutation importance..."):
+                    try:
+                        result = permutation_importance(
+                            pipeline,
+                            item["X_test"],
+                            y_for_scoring,
+                            scoring=scoring,
+                            n_repeats=repeats,
+                            random_state=42,
+                            n_jobs=-1,
+                        )
+                        fi = pd.DataFrame(
+                            {
+                                "Feature": item["X_test"].columns,
+                                "Importance Mean": result.importances_mean,
+                                "Importance Std": result.importances_std,
+                            }
+                        ).sort_values("Importance Mean", ascending=False)
+                        st.session_state["permutation_importance_result"] = {
+                            "model": selected,
+                            "data": fi,
+                        }
+                    except Exception as exc:
+                        st.error(
+                            f"Could not calculate permutation importance: "
+                            f"{type(exc).__name__}: {exc}"
+                        )
+            saved = st.session_state.get("permutation_importance_result")
+            if saved and saved["model"] == selected:
+                fi = saved["data"].head(25)
                 st.dataframe(fi, use_container_width=True, hide_index=True)
-                fig, ax = plt.subplots(figsize=(9, max(4, len(fi) * 0.3)))
-                ax.barh(fi["Feature"], fi["Importance"])
+                fig, ax = plt.subplots(figsize=(9, max(4, len(fi) * 0.32)))
+                ax.barh(
+                    fi["Feature"],
+                    fi["Importance Mean"],
+                    xerr=fi["Importance Std"],
+                )
+                ax.axvline(0, linewidth=1)
+                ax.set_xlabel(f"Mean decrease in {('weighted F1' if task == 'classification' else 'R²')}")
                 ax.invert_yaxis()
                 fig.tight_layout()
                 st.pyplot(fig, use_container_width=True)
                 plt.close(fig)
-            else:
-                st.info(
-                    "Feature names could not be aligned with this model's importance values."
+                st.caption(
+                    "Error bars show the standard deviation across shuffles. "
+                    "Negative or near-zero values can occur and should be interpreted cautiously."
                 )
-        else:
-            st.info(
-                "This estimator does not expose built-in feature importance or coefficients."
+            st.warning(
+                "Permutation importance is calculated on the holdout set. Use it to "
+                "understand this evaluation, not to repeatedly tune choices against "
+                "the holdout and then report that same score as an unbiased final estimate."
             )
     else:
         st.info("No model completed successfully.")
