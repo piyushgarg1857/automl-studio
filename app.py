@@ -19,52 +19,42 @@ st.set_page_config(page_title="AutoML Studio", page_icon="⚡", layout="wide")
 # Optional presentation layer: isolated from the modeling/evaluation logic.
 st.markdown("""
 <style>
-:root { --ink:#17233b; --muted:#64748b; --accent:#635bdb; --line:#e7eaf2; }
-[data-testid="stAppViewContainer"] { background: #f6f7fb; }
-[data-testid="stHeader"] { background: rgba(246,247,251,.85); }
-[data-testid="stSidebar"] { background: #fff; border-right: 1px solid var(--line); }
-.block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1500px; }
-h1, h2, h3 { color: var(--ink); letter-spacing: -.025em; }
-p, label, [data-testid="stCaptionContainer"] { color: var(--muted); }
-[data-testid="stMetric"] {
-  background: #fff; border: 1px solid var(--line); border-radius: 14px;
-  padding: 16px 18px; box-shadow: 0 3px 14px rgba(26,39,70,.04);
-}
-[data-testid="stMetricLabel"] { color: #667085; font-size: .82rem; }
-[data-testid="stMetricValue"] { color: var(--ink); font-weight: 700; }
-.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] button {
-  border-radius: 10px; font-weight: 600; min-height: 2.7rem;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.stButton > button:hover, .stDownloadButton > button:hover {
-  transform: translateY(-1px); box-shadow: 0 5px 14px rgba(99,91,219,.13);
-}
-button[kind="primary"], [data-testid="stFormSubmitButton"] button[kind="primary"] {
-  background: var(--accent); border-color: var(--accent);
-}
-[data-testid="stTabs"] [role="tab"] { font-weight: 600; padding: .7rem .9rem; }
-[data-testid="stDataFrame"], [data-testid="stTable"] {
-  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-}
-[data-testid="stExpander"] { background:#fff; border:1px solid var(--line); border-radius:12px; }
-[data-testid="stFileUploader"] section {
-  background:#fff; border:1.5px dashed #c8cce0; border-radius:14px;
-}
-@media (max-width: 768px) {
-  .block-container { padding: 1rem 1rem 2rem; }
-  [data-testid="stMetric"] { padding: 12px; }
-}
+:root { --bg:#061329; --panel:#0b1d3a; --panel2:#10264b; --ink:#eaf1ff; --muted:#9bb2d9; --line:#1d3b70; --blue:#3678ff; --violet:#6845f5; --cyan:#36c7e8; }
+[data-testid="stAppViewContainer"] { background: radial-gradient(ellipse at 12% 0%, #142d66 0%, #081832 38%, #050f22 100%); color:var(--ink); }
+[data-testid="stHeader"] { background:rgba(5,15,34,.9); }
+[data-testid="stSidebar"] { background:linear-gradient(180deg,#081832,#0b1c3b); border-right:1px solid #1b3970; }
+.block-container { padding-top:1.5rem; padding-bottom:3rem; max-width:1600px; }
+h1,h2,h3,h4 { color:var(--ink); letter-spacing:-.025em; }
+p,label,[data-testid="stCaptionContainer"] { color:var(--muted); }
+[data-testid="stMetric"] { background:linear-gradient(145deg,#102852,#0b1c3a); border:1px solid #214783; border-radius:15px; padding:16px 18px; box-shadow:0 8px 28px rgba(0,0,0,.18); }
+[data-testid="stMetricLabel"] { color:#b5c8eb; font-size:.84rem; }
+[data-testid="stMetricValue"] { color:#f3f7ff; font-weight:750; }
+.stButton>button,.stDownloadButton>button,[data-testid="stFormSubmitButton"] button { border-radius:10px; font-weight:650; min-height:2.65rem; border:1px solid #315aa1; background:#102750; color:#eaf1ff; transition:all .16s ease; }
+.stButton>button:hover,.stDownloadButton>button:hover { border-color:#6e69ff; box-shadow:0 0 18px rgba(82,101,255,.25); transform:translateY(-1px); color:white; }
+button[kind="primary"],[data-testid="stFormSubmitButton"] button[kind="primary"] { background:linear-gradient(110deg,#2876ff,#6246ee); border-color:#4b65ff; color:white; }
+[data-testid="stTabs"] [role="tab"] { color:#a9bee4; font-weight:600; padding:.7rem .9rem; }
+[data-testid="stTabs"] [aria-selected="true"] { color:#fff; border-bottom-color:#6482ff; }
+[data-testid="stDataFrame"],[data-testid="stTable"] { border:1px solid #234477; border-radius:12px; overflow:hidden; }
+[data-testid="stExpander"] { background:#0b1d3a; border:1px solid #214477; border-radius:12px; }
+[data-testid="stFileUploader"] section { background:#0b1d3a; border:1.5px dashed #4265a6; border-radius:14px; }
+[data-testid="stAlert"] { background:#10264a; border-color:#31558d; color:#eaf1ff; }
+[data-testid="stSelectbox"]>div>div,[data-testid="stMultiSelect"]>div>div { background:#0b1d3a; }
+hr { border-color:#1c3768; }
+@media(max-width:768px) { .block-container {padding:1rem 1rem 2rem;} [data-testid="stMetric"]{padding:12px;} }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div style="display:flex;align-items:center;gap:14px;margin:0 0 1.2rem 0;">
-  <div style="width:48px;height:48px;border-radius:15px;background:linear-gradient(135deg,#635bdb,#3984dc);
-              display:flex;align-items:center;justify-content:center;color:white;font-size:25px;
-              box-shadow:0 8px 20px rgba(99,91,219,.2);">⚡</div>
+<div style="display:flex;align-items:center;gap:14px;margin:0 0 1rem 0;">
+  <div style="width:52px;height:52px;border-radius:16px;background:linear-gradient(140deg,#36c7e8 0%,#3976ff 48%,#7546f5 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 0 26px rgba(75,100,255,.35);">
+    <svg width="34" height="34" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 31L17 7H23L35 31H27L20 16L13 31H5Z" fill="white"/>
+      <path d="M16 25H25L29 32H12L16 25Z" fill="#B9F5FF"/>
+    </svg>
+  </div>
   <div>
-    <div style="font-size:1.85rem;line-height:1.15;font-weight:750;color:#17233b;letter-spacing:-.04em;">AutoML Studio</div>
-    <div style="font-size:.92rem;color:#64748b;margin-top:5px;">A focused workspace for tabular machine learning</div>
+    <div style="font-size:1.8rem;line-height:1.15;font-weight:780;color:#F3F7FF;letter-spacing:-.04em;">AutoML <span style="background:linear-gradient(90deg,#58c9ff,#9b83ff);-webkit-background-clip:text;color:transparent;">Studio</span></div>
+    <div style="font-size:.88rem;color:#9bb2d9;margin-top:5px;">Build · Train · Evaluate · Predict</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
