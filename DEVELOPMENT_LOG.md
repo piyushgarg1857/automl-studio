@@ -28,4 +28,4 @@ This file records meaningful development work, validation, known gaps, and hando
 ### Test runs
 | Date | Command | Result | Notes |
 |---|---|---|---|
-| 2026-10-03 | Pending on this branch | Not yet recorded | Run `python -m unittest discover -s tests -v` and update this table with the actual result. |
+| 2026-10-03 | Targeted ModelBundle tests (2 tests) | Passed | Independently executed in Python 3.13.5 with scikit-learn; full repository suite and app/UI runtime remain pending. |
