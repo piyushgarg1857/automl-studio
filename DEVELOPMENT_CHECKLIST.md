@@ -18,7 +18,7 @@ Use this checklist to track project completion. Update it as work is completed; 
 - [x] Encode classification targets for estimators that require integer classes.
 - [ ] Add broader tests for missing values, multiclass edge cases, and small class counts.
 - [x] Add tests for regression metrics and input-validation handling.
-- [ ] Add tests for model-failure handling.
+- [ ] Verify model-failure handling tests in CI.
 - [ ] Review whether target encoding and class handling remain compatible with all supported estimators.
 
 ## Model export
