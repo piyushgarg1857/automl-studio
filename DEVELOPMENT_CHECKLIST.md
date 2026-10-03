@@ -17,7 +17,8 @@ Use this checklist to track project completion. Update it as work is completed; 
 - [x] Use stratified CV for classification and KFold for regression.
 - [x] Encode classification targets for estimators that require integer classes.
 - [ ] Add broader tests for missing values, multiclass edge cases, and small class counts.
-- [ ] Add tests for regression metrics and model-failure handling.
+- [x] Add tests for regression metrics and input-validation handling.
+- [ ] Add tests for model-failure handling.
 - [ ] Review whether target encoding and class handling remain compatible with all supported estimators.
 
 ## Model export
